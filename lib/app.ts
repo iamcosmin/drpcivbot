@@ -1,6 +1,6 @@
-import TelegramBot from 'node-telegram-bot-api';
 import Express from 'express';
 import { questionList } from './docs';
+import { Telegraf } from 'telegraf';
 require('dotenv').config()
 
 function log(tech: String, val: String) {
@@ -49,32 +49,30 @@ log('Bot', 'Initializing API.')
 const token = process.env.TOKEN;
 
 log('Bot', 'Initializing...')
-const bot = new TelegramBot(token!, { polling: true });
+const bot = new Telegraf(token!)
 
 log('Bot', 'Polling started successfully.')
 
-bot.on('message', async (msg)  => {
-    const text = msg.text;
-    const chatId = msg.chat.id;
-
-    if (text?.startsWith('/start')) {
-        bot.sendMessage(chatId, 'Buna ziua de pe Node.js.')
+bot.command('i', async (ctx) => {
+    const question = generateQuestion()
+    if (question?.questionImage != null) {
+        await ctx.sendPhoto('https://raw.githubusercontent.com/iamcosmin/drpcivbot/main/assets/image/' + question.questionImage)
     }
-
-    if (text?.startsWith('/i')) {
-        const message = await bot.sendMessage(chatId, '5')
+    const message = await ctx.sendMessage('5', {message_thread_id: ctx.message.message_thread_id})
+    await sleep(1000)
+    for (var i = 1; i < 5; i++) {
+        bot.telegram.editMessageText(message.chat.id, message.message_id, undefined, (5 - i).toString())
         await sleep(1000)
-        for (var i = 1; i < 5; i++) {
-            bot.editMessageText((5 - i).toString(), { chat_id: chatId, message_id: message.message_id })
-            await sleep(1000)
-        }
-        const question = generateQuestion()
-        bot.editMessageText(
+    }
+    bot.telegram.editMessageText(message.chat.id, message.message_id, undefined,
 `Alege varianta corectă în sondajul de mai jos.
+
     Întrebare: <b>${question?.question}</b>
         A. ${question?.answ1}
         B. ${question?.answ2}
-        C. ${question?.answ3}`, { message_id: message.message_id, chat_id: chatId, parse_mode: 'HTML' })
-        bot.sendPoll(chatId, 'Alege varianta corectă.', ['A', 'B', 'C', 'AB', 'BC', 'AC', 'ABC'], {type: 'quiz', correct_option_id: answerStrToInt(question?.correct)});
-    }
+        C. ${question?.answ3}`, { parse_mode: 'HTML' })
+    ctx.sendQuiz('Alege varianta corectă.', ['A', 'B', 'C', 'AB', 'BC', 'AC', 'ABC'], {is_anonymous: false, correct_option_id: answerStrToInt(question?.correct), message_thread_id: ctx.message.message_thread_id, });
 })
+
+bot.launch()
+log('Bot', 'Bot launched successfully.')
